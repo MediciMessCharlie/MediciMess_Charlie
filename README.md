@@ -143,6 +143,26 @@ python3 generate_additional_data.py
 python3 validate_transactions.py
 ```
 
+### Reusable CSV ingestion
+
+Use `ingestion.py` when loading transaction CSV files into the shared data
+pipeline. It streams the input, converts IDs, dates, and monetary values to
+their expected Python types, validates every normalized transaction, and
+continues after malformed records.
+
+```python
+from ingestion import ingest_csv
+
+result = ingest_csv("medici_transactions.csv", last_processed_id=None)
+print(f"Accepted: {result.accepted_count}; rejected: {result.rejected_count}")
+
+for rejection in result.rejected_records:
+    print(rejection.row_number, rejection.reason)
+```
+
+Potential duplicates are retained and reported in `result.duplicate_rows` so
+callers can review them rather than losing records silently.
+
 For detailed information about the transaction data, see [TRANSACTION_DATA.md](TRANSACTION_DATA.md).
 
 ## Importing and Exporting Transaction Data
