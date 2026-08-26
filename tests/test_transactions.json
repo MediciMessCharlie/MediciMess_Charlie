@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "date": "1390-01-01",
+    "branch": "Florence",
+    "type": "war_financing",
+    "counterparty": "Republic of Florence",
+    "description": "Emergency war financing for Florence defense",
+    "debit_account": "Loans Receivable - Government",
+    "debit_amount": 82833.66,
+    "credit_account": "Cash",
+    "credit_amount": 82833.66,
+    "currency": "florin"
+  }
+]
