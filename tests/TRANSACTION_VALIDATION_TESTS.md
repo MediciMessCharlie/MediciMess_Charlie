@@ -132,10 +132,8 @@ Validation Results:
 
 ❌ Found 1 errors
 
-
 ——————————————————
 ## TEST 5
-
 
 ============================================================
 VALIDATING CSV FILE: tests/test_transactions.csv
@@ -183,4 +181,28 @@ Validation Results:
 ❌ Found 1 errors
 
 
+## Phase 2 Pipeline Integration Testing
 
+### Purpose
+
+Verify that the completed ingestion pipeline successfully integrates the CSV
+ingestion module, JSON ingestion module, and shared transaction validator.
+
+The pipeline was tested using both small test files and the complete transaction
+datasets.
+
+### Integration Tests
+
+| Test | Expected Result | Actual Result | Status |
+|---|---|---|---|
+| CSV test file through pipeline | Valid record accepted | 1 accepted, 0 rejected | PASS |
+| JSON test file through pipeline | Valid record accepted | 1 accepted, 0 rejected | PASS |
+| Full CSV dataset through pipeline | All valid records accepted | 80,230 accepted, 0 rejected | PASS |
+| Full JSON dataset through pipeline | All valid records accepted | 80,230 accepted, 0 rejected | PASS |
+
+### Full Pipeline Results
+
+Command:
+
+```bash
+python3 -m ingestion.pipeline
