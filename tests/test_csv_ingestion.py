@@ -6,6 +6,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from ingestion.csv_ingestion import CSVSchemaError, ingest_csv
+from validate_transactions import validate_transaction as shared_validator
 
 
 FIELDS = [
@@ -46,7 +47,15 @@ class CSVIngestionTests(unittest.TestCase):
         self.assertEqual(transaction.id, 1)
         self.assertEqual(transaction.date, date(1415, 5, 29))
         self.assertEqual(transaction.debit_amount, Decimal("35000.00"))
-        self.assertEqual(transaction.credit_amount_2, Decimal("0"))
+        self.assertIsNone(transaction.credit_amount_2)
+
+    def test_records_pass_through_shared_validator(self):
+        result = ingest_csv(
+            self.write_csv([valid_row(), valid_row(id="2", credit_amount="1")]),
+            validator=shared_validator,
+        )
+        self.assertEqual((result.accepted_count, result.rejected_count), (1, 1))
+        self.assertIn("unbalanced", result.rejected_records[0].reason.lower())
 
     def test_missing_required_column_fails_before_import(self):
         fields = [field for field in FIELDS if field != "branch"]

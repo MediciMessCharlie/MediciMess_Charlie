@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 
 LOGGER = logging.getLogger(__name__)
@@ -51,8 +51,19 @@ class TransactionRecord:
     credit_account: str
     credit_amount: Decimal
     credit_account_2: Optional[str] = None
-    credit_amount_2: Decimal = Decimal("0")
+    credit_amount_2: Optional[Decimal] = None
     currency: str = "florin"
+
+    def __getitem__(self, field_name: str) -> Any:
+        """Provide the dictionary-style access used by the shared validator."""
+        try:
+            return getattr(self, field_name)
+        except AttributeError as exc:
+            raise KeyError(field_name) from exc
+
+    def get(self, field_name: str, default: Any = None) -> Any:
+        """Match ``dict.get`` so all ingestion paths share one validator."""
+        return getattr(self, field_name, default)
 
 
 @dataclass(frozen=True)
@@ -77,7 +88,8 @@ class CSVIngestionResult:
         return len(self.rejected_records)
 
 
-TransactionValidator = Callable[[TransactionRecord], None]
+ValidationResult = Optional[Tuple[bool, List[str]]]
+TransactionValidator = Callable[[TransactionRecord], ValidationResult]
 
 
 def validate_transaction(transaction: TransactionRecord) -> None:
@@ -91,17 +103,18 @@ def validate_transaction(transaction: TransactionRecord) -> None:
         raise TransactionValidationError(
             "required value(s) are blank: " + ", ".join(missing)
         )
-    if transaction.id < 0:
-        raise TransactionValidationError("id must be a non-negative integer")
+    if transaction.id <= 0:
+        raise TransactionValidationError("id must be greater than zero")
     if transaction.debit_amount <= 0 or transaction.credit_amount < 0:
         raise TransactionValidationError("transaction amounts must be positive")
-    if transaction.credit_amount_2 < 0:
+    second_credit = transaction.credit_amount_2 or Decimal("0")
+    if second_credit < 0:
         raise TransactionValidationError("credit_amount_2 cannot be negative")
-    if transaction.credit_amount_2 and not transaction.credit_account_2:
+    if second_credit and not transaction.credit_account_2:
         raise TransactionValidationError(
             "credit_account_2 is required when credit_amount_2 is present"
         )
-    total_credit = transaction.credit_amount + transaction.credit_amount_2
+    total_credit = transaction.credit_amount + second_credit
     if transaction.debit_amount != total_credit:
         raise TransactionValidationError(
             f"unbalanced transaction: debit {transaction.debit_amount} != "
@@ -116,10 +129,12 @@ def _required_text(row: dict, name: str) -> str:
     return value.strip()
 
 
-def _decimal(row: dict, name: str, *, optional: bool = False) -> Decimal:
+def _decimal(
+    row: dict, name: str, *, optional: bool = False
+) -> Optional[Decimal]:
     raw = row.get(name)
     if optional and (raw is None or not raw.strip()):
-        return Decimal("0")
+        return None
     if raw is None or not raw.strip():
         raise TransactionValidationError(f"required value is blank: {name}")
     try:
@@ -192,7 +207,14 @@ def ingest_csv(
                     if last_processed_id is not None and transaction.id <= last_processed_id:
                         result.skipped_older_records += 1
                         continue
-                    validator(transaction)
+                    validation_result = validator(transaction)
+                    if validation_result is not None:
+                        is_valid, reasons = validation_result
+                        if not is_valid:
+                            raise TransactionValidationError(
+                                "; ".join(reasons) or
+                                "record failed shared validation"
+                            )
                     duplicate_key = (
                         transaction.date, transaction.branch, transaction.type,
                         transaction.counterparty, transaction.debit_amount,
