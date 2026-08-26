@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from ingestion import CSVSchemaError, ingest_csv
+from ingestion.csv_ingestion import CSVSchemaError, ingest_csv
 
 
 FIELDS = [

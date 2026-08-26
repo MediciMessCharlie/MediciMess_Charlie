@@ -145,13 +145,13 @@ python3 validate_transactions.py
 
 ### Reusable CSV ingestion
 
-Use `ingestion.py` when loading transaction CSV files into the shared data
+Use `ingestion/csv_ingestion.py` when loading transaction CSV files into the shared data
 pipeline. It streams the input, converts IDs, dates, and monetary values to
 their expected Python types, validates every normalized transaction, and
 continues after malformed records.
 
 ```python
-from ingestion import ingest_csv
+from ingestion.csv_ingestion import ingest_csv
 
 result = ingest_csv("medici_transactions.csv", last_processed_id=None)
 print(f"Accepted: {result.accepted_count}; rejected: {result.rejected_count}")
