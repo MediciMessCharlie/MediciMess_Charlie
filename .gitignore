@@ -209,3 +209,6 @@ __marimo__/
 # Demo exported files (temporary)
 exported_transactions.csv
 exported_transactions.json
+
+# Generated Phase 5 production artifacts (sample_serving_outputs is tracked)
+serving_outputs/

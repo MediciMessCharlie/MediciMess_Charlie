@@ -1,0 +1,18 @@
+[
+  {
+    "affected_transaction_ids": [
+      1
+    ],
+    "alert_id": 1,
+    "branch": "Florence",
+    "counterparty": "Republic of Florence",
+    "description": "New counterparty Republic of Florence had 1 transactions totaling 82833.66 during its first active period.",
+    "detected_at": "2026-08-28T18:02:07.739983",
+    "metric_value": "82833.66",
+    "period": "1390-01",
+    "rule": "G",
+    "severity": "HIGH",
+    "status": "OPEN",
+    "threshold_value": "10000.00"
+  }
+]

@@ -409,3 +409,75 @@ confirm:
 
 Once agreed upon, this document becomes the shared contract between
 Phases 3, 4, 5, and 6.
+
+------------------------------------------------------------------------
+
+# 5. Serving Detail Contracts
+
+Phase 3 also produces the detail records needed by the Phase 5 CSV
+artifacts. These are transformation outputs; Phase 5 must not recreate
+their groupings or financial calculations.
+
+## Expense Detail Record
+
+`calculate_expense_details(transactions)` returns `list[dict]`, grouped
+by branch, monthly period, expense category, and counterparty.
+
+``` python
+{
+    "branch": "Florence",
+    "period": "1420-01",
+    "category": "Security Expense",
+    "counterparty": "Florence Security Guild",
+    "transaction_count": 3,
+    "amount": Decimal("15000.00")
+}
+```
+
+All six fields are required. `transaction_count` is a non-negative
+integer and `amount` is a `Decimal`. Empty input or no matching expense
+activity returns `[]`.
+
+## Loan Detail Record
+
+`calculate_loan_details(transactions)` returns `list[dict]`, grouped by
+branch, monthly period, and counterparty.
+
+``` python
+{
+    "branch": "Florence",
+    "period": "1420-01",
+    "counterparty": "Tuscan Wool Merchants Guild",
+    "loans_issued": Decimal("120000.00"),
+    "loans_repaid": Decimal("80000.00"),
+    "interest_earned": Decimal("8000.00"),
+    "net_loan_movement": Decimal("40000.00")
+}
+```
+
+All seven fields are required. Financial values are `Decimal` and
+`net_loan_movement` equals `loans_issued - loans_repaid`. Empty input
+or no matching loan activity returns `[]`.
+
+The source dataset does not contain loan identifiers linking an
+issuance to its repayments. These records therefore describe observed
+loan activity, not individual open-loan balances or repayment status.
+Phase 5 must not label them as matched loans or infer `OPEN`/`REPAID`
+status.
+
+## Time-Series Contract
+
+Phase 5 uses the monthly KPI records as branch time-series observations.
+For each branch, records are sorted by `period` and written as a JSON
+list. No daily or weekly KPI values are inferred in Phase 5.
+
+## Phase 5 Serialization Rules
+
+- `Decimal` values are serialized as JSON strings and CSV text to
+  preserve exact precision.
+- KPI metric files contain one KPI dictionary.
+- Branch time-series files contain a list of monthly KPI dictionaries.
+- Alert files contain a list of alert dictionaries; no alerts is `[]`.
+- Empty expense and loan CSV files contain headers and no data rows.
+- Files are partitioned using the exact branch and `YYYY-MM` period
+  values supplied by Phase 3 and Phase 4.

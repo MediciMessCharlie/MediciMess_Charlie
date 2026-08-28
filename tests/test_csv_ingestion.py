@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from ingestion.csv_ingestion import CSVSchemaError, ingest_csv
+from ingestion.csv_ingestion import ingest_csv
 from validate_transactions import validate_transaction as shared_validator
 
 
@@ -41,13 +41,15 @@ class CSVIngestionTests(unittest.TestCase):
         return path
 
     def test_valid_row_is_normalized_to_expected_types(self):
-        result = ingest_csv(self.write_csv([valid_row()]))
-        transaction = result.transactions[0]
+        result = ingest_csv(
+            self.write_csv([valid_row()]), validator=shared_validator
+        )
+        transaction = result.accepted[0]
         self.assertEqual((result.accepted_count, result.rejected_count), (1, 0))
-        self.assertEqual(transaction.id, 1)
-        self.assertEqual(transaction.date, date(1415, 5, 29))
-        self.assertEqual(transaction.debit_amount, Decimal("35000.00"))
-        self.assertIsNone(transaction.credit_amount_2)
+        self.assertEqual(transaction["id"], 1)
+        self.assertEqual(transaction["date"], date(1415, 5, 29))
+        self.assertEqual(transaction["debit_amount"], Decimal("35000.00"))
+        self.assertIsNone(transaction["credit_amount_2"])
 
     def test_records_pass_through_shared_validator(self):
         result = ingest_csv(
@@ -55,12 +57,15 @@ class CSVIngestionTests(unittest.TestCase):
             validator=shared_validator,
         )
         self.assertEqual((result.accepted_count, result.rejected_count), (1, 1))
-        self.assertIn("unbalanced", result.rejected_records[0].reason.lower())
+        self.assertIn("unbalanced", result.rejected[0].reasons[0].lower())
 
     def test_missing_required_column_fails_before_import(self):
         fields = [field for field in FIELDS if field != "branch"]
-        with self.assertRaisesRegex(CSVSchemaError, "branch"):
-            ingest_csv(self.write_csv([], fields))
+        result = ingest_csv(
+            self.write_csv([], fields), validator=shared_validator
+        )
+        self.assertEqual(result.accepted_count, 0)
+        self.assertIn("branch", result.source_errors[0])
 
     def test_bad_rows_are_rejected_without_stopping_later_rows(self):
         rows = [
@@ -68,30 +73,36 @@ class CSVIngestionTests(unittest.TestCase):
             valid_row(id="2"),
             valid_row(id="3", credit_amount="1.00"),
         ]
-        result = ingest_csv(self.write_csv(rows))
+        result = ingest_csv(self.write_csv(rows), validator=shared_validator)
         self.assertEqual((result.accepted_count, result.rejected_count), (1, 2))
-        self.assertEqual(result.transactions[0].id, 2)
+        self.assertEqual(result.accepted[0]["id"], 2)
 
     def test_secondary_credit_balances_transaction(self):
         row = valid_row(
             credit_amount="34000", credit_account_2="Interest Income",
             credit_amount_2="1000",
         )
-        result = ingest_csv(self.write_csv([row]))
+        result = ingest_csv(
+            self.write_csv([row]), validator=shared_validator
+        )
         self.assertEqual(result.accepted_count, 1)
 
     def test_duplicates_are_flagged_but_not_discarded(self):
-        result = ingest_csv(self.write_csv([valid_row(), valid_row(id="2")]))
+        result = ingest_csv(
+            self.write_csv([valid_row(), valid_row(id="2")]),
+            validator=shared_validator,
+        )
         self.assertEqual(result.accepted_count, 2)
         self.assertEqual(result.duplicate_rows, [(2, 3)])
 
     def test_incremental_load_skips_old_ids(self):
         result = ingest_csv(
             self.write_csv([valid_row(id="4"), valid_row(id="6")]),
+            validator=shared_validator,
             last_processed_id=5,
         )
-        self.assertEqual([item.id for item in result.transactions], [6])
-        self.assertEqual(result.skipped_older_records, 1)
+        self.assertEqual([item["id"] for item in result.accepted], [6])
+        self.assertEqual(result.skipped_by_incremental_filter, 1)
 
 
 if __name__ == "__main__":

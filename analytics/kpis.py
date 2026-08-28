@@ -182,6 +182,51 @@ def calc_int_yield(transactions):
 
     return interest_yield.quantize(Decimal("0.01"))
 
+def calculate_loan_details(transactions):
+    """Return observable monthly loan activity by branch and counterparty.
+
+    The source data has no loan IDs, so these records intentionally report
+    activity rather than claiming to identify open loans or matched balances.
+    """
+    grouped = {}
+
+    for transaction in transactions:
+        if transaction["type"] not in {"loan_issuance", "loan_repayment"}:
+            continue
+
+        enriched = enrich_transaction(transaction)
+        key = (
+            enriched["branch"],
+            enriched["period"],
+            enriched["counterparty"],
+        )
+        detail = grouped.setdefault(
+            key,
+            {
+                "branch": key[0],
+                "period": key[1],
+                "counterparty": key[2],
+                "loans_issued": Decimal("0"),
+                "loans_repaid": Decimal("0"),
+                "interest_earned": Decimal("0"),
+                "net_loan_movement": Decimal("0"),
+            },
+        )
+
+        if enriched["type"] == "loan_issuance":
+            detail["loans_issued"] += enriched["debit_amount"]
+        else:
+            detail["loans_repaid"] += enriched["credit_amount"]
+            detail["interest_earned"] += (
+                enriched.get("credit_amount_2") or Decimal("0")
+            )
+
+        detail["net_loan_movement"] = (
+            detail["loans_issued"] - detail["loans_repaid"]
+        )
+
+    return [grouped[key] for key in sorted(grouped)]
+
 #===============================
 # OPERATING EXPENSE METRICS
 #===============================
@@ -241,6 +286,37 @@ def calc_top_payees_by_expense(transactions):
         })
 
     return top_payees
+
+def calculate_expense_details(transactions):
+    """Return monthly expenses by branch, category, and counterparty."""
+    grouped = {}
+
+    for transaction in transactions:
+        if transaction["type"] != "operating_expense":
+            continue
+
+        enriched = enrich_transaction(transaction)
+        key = (
+            enriched["branch"],
+            enriched["period"],
+            enriched["debit_account"],
+            enriched["counterparty"],
+        )
+        detail = grouped.setdefault(
+            key,
+            {
+                "branch": key[0],
+                "period": key[1],
+                "category": key[2],
+                "counterparty": key[3],
+                "transaction_count": 0,
+                "amount": Decimal("0"),
+            },
+        )
+        detail["transaction_count"] += 1
+        detail["amount"] += enriched["debit_amount"]
+
+    return [grouped[key] for key in sorted(grouped)]
 
 #===============================
 # REVENUE METRICS

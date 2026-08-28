@@ -762,6 +762,31 @@ All Phase 4 alert tests passed successfully.
 
 ---
 
+## Phase 5 — Serving Layer
+
+Phase 5 consumes the completed Phase 3 KPI/detail records and Phase 4 alert
+records. It validates, partitions, and writes the required serving artifacts
+without recalculating financial metrics or anomaly rules.
+
+Generate the sample artifact bundle:
+
+```bash
+python3 generate_serving_artifacts.py tests/test_transactions.json \
+    --output sample_serving_outputs
+```
+
+Generate artifacts from the complete historical dataset:
+
+```bash
+python3 generate_serving_artifacts.py medici_transactions.csv \
+    --output serving_outputs
+```
+
+See `PHASE5_SERVING_LAYER.md` for output layouts, serialization rules,
+integration usage, loan-data limitations, testing, and the definition of done.
+
+---
+
 ## Advanced Lab Components
 
 This repository includes additional components that extend the project into more complex data engineering and analysis topics.

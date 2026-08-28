@@ -63,7 +63,7 @@ def test_json_root_must_be_a_list(tmp_path):
     result = load_json(write_json(tmp_path, valid_record()), accept_all)
 
     assert result.total_records == 0
-    assert result.source_errors == ["JSON root must be a list of transaction objects"]
+    assert result.source_errors == ["JSON root must be a list of transactions"]
 
 
 def test_malformed_record_does_not_stop_batch(tmp_path):
@@ -89,7 +89,7 @@ def test_missing_required_normalization_field_is_rejected(tmp_path):
 
     assert result.accepted_count == 0
     assert result.rejected_count == 1
-    assert result.rejected[0].reasons == ("missing required field: date",)
+    assert result.rejected[0].reasons == ("required field is empty: date",)
 
 
 def test_non_object_record_is_rejected(tmp_path):

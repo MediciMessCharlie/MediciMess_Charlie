@@ -22,6 +22,8 @@ from analytics.kpis import (
     calc_expenses_by_category,
     calc_expense_per_transaction,
     calc_top_payees_by_expense,
+    calculate_expense_details,
+    calculate_loan_details,
     calc_exchange_fee_revenue,
     calc_interest_income,
     calc_trading_revenue,
@@ -533,3 +535,78 @@ for record in kpi_results:
     assert "net_income_margin" in record
 
 print("Full KPI integration test passed!")
+
+
+def test_calculate_expense_details_groups_and_reconciles():
+    details = calculate_expense_details(expense_transactions)
+
+    assert details == [
+        {
+            "branch": "Florence",
+            "period": "1420-04",
+            "category": "Rent Expense",
+            "counterparty": "Medici Properties",
+            "transaction_count": 1,
+            "amount": Decimal("2000.00"),
+        },
+        {
+            "branch": "Florence",
+            "period": "1420-04",
+            "category": "Security Expense",
+            "counterparty": "Florence Security Guild",
+            "transaction_count": 1,
+            "amount": Decimal("1000.00"),
+        },
+        {
+            "branch": "Florence",
+            "period": "1420-04",
+            "category": "Wages Expense",
+            "counterparty": "Florence Workers Guild",
+            "transaction_count": 2,
+            "amount": Decimal("8000.00"),
+        },
+    ]
+    kpi = calculate_kpis(expense_transactions)[0]
+    assert sum((row["amount"] for row in details), Decimal("0")) == kpi[
+        "total_operating_expenses"
+    ]
+
+
+def test_calculate_loan_details_reports_activity_and_reconciles():
+    details = calculate_loan_details(loan_transactions)
+    kpis = {
+        (record["branch"], record["period"]): record
+        for record in calculate_kpis(loan_transactions)
+    }
+
+    assert details[0] == {
+        "branch": "Florence",
+        "period": "1420-01",
+        "counterparty": "Wool Merchant",
+        "loans_issued": Decimal("10000.00"),
+        "loans_repaid": Decimal("2000.00"),
+        "interest_earned": Decimal("200.00"),
+        "net_loan_movement": Decimal("8000.00"),
+    }
+
+    for key, kpi in kpis.items():
+        period_rows = [
+            row for row in details
+            if (row["branch"], row["period"]) == key
+        ]
+        assert sum(
+            (row["loans_issued"] for row in period_rows), Decimal("0")
+        ) == kpi["loans_issued"]
+        assert sum(
+            (row["loans_repaid"] for row in period_rows), Decimal("0")
+        ) == kpi["loans_repaid"]
+        assert sum(
+            (row["interest_earned"] for row in period_rows), Decimal("0")
+        ) == kpi["interest_earned"]
+
+
+def test_detail_outputs_are_empty_without_matching_activity():
+    assert calculate_expense_details([]) == []
+    assert calculate_loan_details([]) == []
+    assert calculate_expense_details(loan_transactions) == []
+    assert calculate_loan_details(expense_transactions) == []
