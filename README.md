@@ -787,6 +787,70 @@ integration usage, loan-data limitations, testing, and the definition of done.
 
 ---
 
+## Phase 6A — Dashboard REST API
+
+Phase 6A provides read-only FastAPI access to the Phase 5 artifacts and the
+validated transaction ledger. It does not recalculate KPIs or anomaly rules.
+
+Install the API dependencies and start the development server:
+
+```bash
+python3 -m pip install -r requirements.txt
+uvicorn api.app:app --reload
+```
+
+Interactive API documentation is available at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Available endpoints:
+
+```text
+GET /health
+GET /api/branches
+GET /api/kpis
+GET /api/transactions
+GET /api/cashflow
+GET /api/loans
+GET /api/expenses
+GET /api/alerts
+```
+
+The API uses `sample_serving_outputs` and `medici_transactions.csv` by
+default. Point it at another generated artifact directory or transaction
+source with:
+
+```bash
+MEDICIMESS_ARTIFACT_DIRECTORY=serving_outputs \
+MEDICIMESS_TRANSACTION_SOURCE=medici_transactions.csv \
+uvicorn api.app:app --reload
+```
+
+See `PHASE6_README.md` for endpoint examples, design explanations, current
+data limitations, and the Phase 6 learning log.
+
+## Phase 6B — Branch Manager Dashboard
+
+Phase 6B adds the Dash branch-operations interface on top of the Phase 6A API.
+It includes global branch/period controls, KPI comparisons, cash-flow charts,
+loan and expense analysis, bills-of-exchange activity, anomaly review, and a
+searchable, sortable, paginated transaction ledger.
+
+Start Dash after starting FastAPI:
+
+```bash
+MEDICIMESS_API_URL=http://127.0.0.1:8000 \
+python3 -m dashboard.app
+```
+
+Open `http://127.0.0.1:8050`. For the complete setup, full-data commands,
+implemented features, verification results, and limitations, see
+`PHASE6_README.md`.
+
+---
+
 ## Advanced Lab Components
 
 This repository includes additional components that extend the project into more complex data engineering and analysis topics.
