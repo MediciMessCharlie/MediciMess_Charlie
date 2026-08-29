@@ -1,0 +1,6 @@
+fastapi>=0.141,<1
+uvicorn>=0.52,<1
+httpx>=0.28,<1
+pytest>=9,<10
+dash>=3,<5
+plotly>=6,<7
