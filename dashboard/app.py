@@ -3,11 +3,14 @@
 from calendar import monthrange
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from urllib.parse import quote, unquote
 
 from dash import Dash, Input, Output, State, ctx, dcc, html
 import plotly.graph_objects as go
 
 from .client import DashboardAPIClient, DashboardAPIError
+from .access import Role
+from .auth import configure_auth, current_user
 
 
 ASSETS_DIRECTORY = Path(__file__).with_name("assets")
@@ -18,6 +21,7 @@ app = Dash(
     title="Medici Bank Branch Operations",
 )
 server = app.server
+configure_auth(server)
 api_client = DashboardAPIClient.from_environment()
 
 app.layout = html.Div(
@@ -33,8 +37,28 @@ app.layout = html.Div(
                     ]
                 ),
                 html.Div(
-                    "Phase 6B",
-                    className="phase-badge",
+                    className="header-actions",
+                    children=[
+                        dcc.Link(
+                            "Network Overview",
+                            id="network-nav-link",
+                            href="/",
+                            refresh=True,
+                            className="header-link",
+                        ),
+                        dcc.Link(
+                            "Florence Branch",
+                            id="branch-nav-link",
+                            href="/branch/Florence",
+                            refresh=True,
+                            className="header-link",
+                        ),
+                        html.A(
+                            "Logout",
+                            href="/logout",
+                            className="header-link logout-link",
+                        ),
+                    ],
                 ),
             ],
         ),
@@ -127,6 +151,26 @@ app.layout = html.Div(
                     ],
                 ),
                 html.Section(
+                    id="network-overview-panel",
+                    className="panel",
+                    children=[
+                        html.Div(
+                            className="section-heading",
+                            children=[
+                                html.P("MANAGING DIRECTOR", className="eyebrow"),
+                                html.H2("Network Overview"),
+                            ],
+                        ),
+                        html.P(
+                            "Compare all branches for the selected reporting period. "
+                            "Highlighted ratios are statistical outliers.",
+                            className="panel-note",
+                        ),
+                        html.Div(id="network-overview-error", className="error-message"),
+                        html.Div(id="network-overview-table"),
+                    ],
+                ),
+                html.Section(
                     id="dashboard-panels",
                     className="panel",
                     children=[
@@ -144,10 +188,12 @@ app.layout = html.Div(
                                 dcc.Graph(
                                     id="cash-balance-chart",
                                     config={"displaylogo": False, "responsive": True},
+                                    className="dashboard-chart",
                                 ),
                                 dcc.Graph(
                                     id="cash-movement-chart",
                                     config={"displaylogo": False, "responsive": True},
+                                    className="dashboard-chart",
                                 ),
                             ],
                         ),
@@ -177,6 +223,7 @@ app.layout = html.Div(
                                 dcc.Graph(
                                     id="expense-category-chart",
                                     config={"displaylogo": False, "responsive": True},
+                                    className="dashboard-chart",
                                 ),
                                 html.Div(
                                     children=[
@@ -401,17 +448,61 @@ app.layout = html.Div(
     Output("branch-load-error", "children"),
     Input("dashboard-url", "pathname"),
 )
-def load_branch_controls(_pathname):
+def load_branch_controls(pathname):
     """Populate the branch selector from Phase 6A data."""
     try:
         branches = api_client.get_branches()
     except DashboardAPIError as error:
         return [], None, str(error)
 
+    user = current_user()
+    if user is not None and user.role == Role.BRANCH_MANAGER:
+        branches = [branch for branch in branches if branch == user.branch]
+
     options = [{"label": branch, "value": branch} for branch in branches]
-    value = "Florence" if "Florence" in branches else (branches[0] if branches else None)
+    requested_branch = None
+    if pathname and pathname.startswith("/branch/"):
+        requested_branch = unquote(pathname.removeprefix("/branch/"))
+    if requested_branch in branches:
+        value = requested_branch
+    else:
+        value = "Florence" if "Florence" in branches else (
+            branches[0] if branches else None
+        )
     message = "" if branches else "No branches are available."
     return options, value, message
+
+
+@app.callback(
+    Output("network-overview-panel", "style"),
+    Output("kpi-panel", "style"),
+    Output("dashboard-panels", "style"),
+    Output("expense-panel", "style"),
+    Output("loan-panel", "style"),
+    Output("bill-panel", "style"),
+    Output("alert-panel", "style"),
+    Output("transaction-panel", "style"),
+    Input("dashboard-url", "pathname"),
+)
+def select_dashboard_view(pathname):
+    """Keep network and branch dashboards on separate routes."""
+    network_style = {} if not pathname or pathname == "/" else {"display": "none"}
+    branch_style = {"display": "none"} if not pathname or pathname == "/" else {}
+    return (network_style,) + (branch_style,) * 7
+
+
+@app.callback(
+    Output("network-nav-link", "style"),
+    Output("branch-nav-link", "children"),
+    Output("branch-nav-link", "href"),
+    Input("dashboard-url", "pathname"),
+)
+def load_role_navigation(_pathname):
+    """Show only navigation destinations allowed for the signed-in role."""
+    user = current_user()
+    if user is not None and user.role == Role.BRANCH_MANAGER:
+        return {"display": "none"}, f"{user.branch} Branch", f"/branch/{user.branch}"
+    return {}, "Florence Branch", "/branch/Florence"
 
 
 @app.callback(
@@ -447,6 +538,95 @@ def format_florins(value) -> str:
     except (InvalidOperation, TypeError, ValueError):
         return "N/A"
     return f"{amount:,.2f} florins"
+
+
+def format_percentage(value) -> str:
+    """Format a serialized ratio for network comparison."""
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return "N/A"
+    return f"{amount:,.2f}%"
+
+
+@app.callback(
+    Output("network-overview-table", "children"),
+    Output("network-overview-error", "children"),
+    Input("start-period-selector", "value"),
+    Input("end-period-selector", "value"),
+)
+def load_network_overview(start, end):
+    """Render cross-branch comparisons and the network total row."""
+    if not start or not end:
+        return "Select a reporting period.", ""
+
+    try:
+        summary = api_client.get_network_summary(start=start, end=end)
+    except DashboardAPIError as error:
+        return "", str(error)
+
+    rows = summary["branches"]
+    if not rows:
+        return "No network KPI data is available for this range.", ""
+
+    outlier_cells = {
+        (outlier["branch"], outlier["metric"])
+        for outlier in summary["outliers"]
+    }
+
+    def ratio_cell(row, metric):
+        is_outlier = (row["branch"], metric) in outlier_cells
+        return html.Td(
+            format_percentage(row[metric]),
+            className="network-outlier" if is_outlier else "",
+        )
+
+    def table_row(row, *, total=False):
+        return html.Tr(
+            className="network-total-row" if total else "",
+            children=[
+                html.Td(
+                    dcc.Link(
+                        row["branch"],
+                        href=f'/branch/{quote(row["branch"], safe="")}',
+                        refresh=True,
+                        className="branch-drilldown-link",
+                    )
+                    if not total
+                    else row["branch"]
+                ),
+                html.Td(format_florins(row["modeled_cash_position"])),
+                html.Td(format_florins(row["net_income"])),
+                html.Td(format_florins(row["loan_portfolio_balance"])),
+                html.Td(f'{row["open_alerts"]:,}'),
+                ratio_cell(row, "expense_ratio"),
+                ratio_cell(row, "loan_yield"),
+            ],
+        )
+
+    headers = (
+        "Branch",
+        "Modeled Cash",
+        "Net Income",
+        "Loans Outstanding",
+        "Open Alerts",
+        "Expense Ratio",
+        "Loan Yield",
+    )
+    table = html.Div(
+        className="table-scroll",
+        children=html.Table(
+            className="network-table",
+            children=[
+                html.Thead(html.Tr([html.Th(header) for header in headers])),
+                html.Tbody(
+                    [table_row(row) for row in rows]
+                    + [table_row(summary["totals"], total=True)]
+                ),
+            ],
+        ),
+    )
+    return table, ""
 
 
 def prior_year_period(period: str) -> str:

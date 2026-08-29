@@ -672,3 +672,54 @@ def test_branch_endpoint_discovers_available_kpi_branches(tmp_path):
         "count": 2,
         "items": ["Florence", "Rome"],
     }
+
+
+def test_network_summary_endpoint_returns_all_branch_comparisons():
+    kpis = [
+        {
+            "branch": "Florence",
+            "period": "1420-01",
+            "closing_cash_balance": "100.00",
+            "net_income": "20.00",
+            "loan_portfolio_balance": "50.00",
+            "total_operating_expenses": "10.00",
+            "total_revenue": "100.00",
+            "interest_earned": "5.00",
+            "loans_repaid": "50.00",
+        },
+        {
+            "branch": "Rome",
+            "period": "1420-01",
+            "closing_cash_balance": "80.00",
+            "net_income": "10.00",
+            "loan_portfolio_balance": "40.00",
+            "total_operating_expenses": "20.00",
+            "total_revenue": "100.00",
+            "interest_earned": "4.00",
+            "loans_repaid": "40.00",
+        },
+    ]
+    repository = SimpleNamespace(
+        load_kpis=lambda **_filters: kpis,
+        load_alerts=lambda **_filters: [
+            {"branch": "Florence", "status": "OPEN"}
+        ],
+    )
+    app.dependency_overrides[get_repository] = lambda: repository
+    try:
+        response = client.get(
+            "/api/network/summary",
+            params={"start": "1420-01", "end": "1420-01"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [row["branch"] for row in payload["branches"]] == [
+        "Florence",
+        "Rome",
+    ]
+    assert payload["totals"]["modeled_cash_position"] == "180.00"
+    assert payload["totals"]["open_alerts"] == 1
+    assert payload["outliers"] == []

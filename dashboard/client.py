@@ -7,6 +7,9 @@ from typing import Any
 
 import httpx
 
+from .access import can_view_branch, can_view_network
+from .auth import current_user
+
 
 DEFAULT_API_URL = "http://127.0.0.1:8000"
 
@@ -60,6 +63,13 @@ class DashboardAPIClient:
             raise DashboardAPIError("The API returned an invalid item list.")
         return items
 
+    @staticmethod
+    def _authorize_branch(branch: str) -> None:
+        """Reject a branch request outside the signed-in user's assignment."""
+        user = current_user()
+        if user is not None and not can_view_branch(user, branch):
+            raise DashboardAPIError("You are not authorized to view this branch.")
+
     def get_branches(self) -> list[str]:
         """Return branches available to the dashboard."""
         branches = self._get_items("/api/branches")
@@ -77,6 +87,7 @@ class DashboardAPIClient:
         end: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return monthly KPI records used to discover available periods."""
+        self._authorize_branch(branch)
         params = {"branch": branch}
         if start is not None:
             params["start"] = start
@@ -95,6 +106,7 @@ class DashboardAPIClient:
         end: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return alerts used by dashboard summaries and panels."""
+        self._authorize_branch(branch)
         params = {"branch": branch}
         if start is not None:
             params["start"] = start
@@ -105,6 +117,35 @@ class DashboardAPIClient:
             raise DashboardAPIError("The API returned an invalid alert list.")
         return records
 
+    def get_network_summary(
+        self,
+        *,
+        start: str | None = None,
+        end: str | None = None,
+    ) -> dict[str, Any]:
+        """Return cross-branch comparisons, totals, and outlier details."""
+        user = current_user()
+        if user is not None and not can_view_network(user):
+            raise DashboardAPIError("You are not authorized to view the network.")
+        params = {}
+        if start is not None:
+            params["start"] = start
+        if end is not None:
+            params["end"] = end
+        payload = self._get("/api/network/summary", **params)
+        branches = payload.get("branches")
+        totals = payload.get("totals")
+        outliers = payload.get("outliers")
+        if (
+            not isinstance(branches, list)
+            or not all(isinstance(row, dict) for row in branches)
+            or not isinstance(totals, dict)
+            or not isinstance(outliers, list)
+            or not all(isinstance(outlier, dict) for outlier in outliers)
+        ):
+            raise DashboardAPIError("The API returned an invalid network summary.")
+        return payload
+
     def get_cashflow(
         self,
         branch: str,
@@ -113,6 +154,7 @@ class DashboardAPIClient:
         end: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return monthly cash-flow records for dashboard charts."""
+        self._authorize_branch(branch)
         params = {"branch": branch, "granularity": "monthly"}
         if start is not None:
             params["start"] = start
@@ -131,6 +173,7 @@ class DashboardAPIClient:
         end: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return expense-detail records for dashboard analysis."""
+        self._authorize_branch(branch)
         params = {"branch": branch}
         if start is not None:
             params["start"] = start
@@ -149,6 +192,7 @@ class DashboardAPIClient:
         end: str | None = None,
     ) -> list[dict[str, Any]]:
         """Return observable monthly loan-activity records."""
+        self._authorize_branch(branch)
         params = {"branch": branch}
         if start is not None:
             params["start"] = start
@@ -161,6 +205,7 @@ class DashboardAPIClient:
 
     def get_transactions(self, branch: str, **filters: Any) -> dict[str, Any]:
         """Return one validated, paginated transaction response."""
+        self._authorize_branch(branch)
         params = {"branch": branch}
         params.update(
             {key: value for key, value in filters.items() if value is not None}
