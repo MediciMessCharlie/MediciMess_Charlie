@@ -14,6 +14,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from dashboard.network import summarize_network
+
 from .repository import (
     ArtifactRepository,
     ArtifactRepositoryError,
@@ -112,6 +114,17 @@ def serialize_transaction(transaction: dict[str, Any]) -> dict[str, Any]:
     return serialized
 
 
+def serialize_decimals(value: Any) -> Any:
+    """Recursively preserve decimal precision in network API responses."""
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: serialize_decimals(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [serialize_decimals(item) for item in value]
+    return value
+
+
 @app.get("/health", tags=["system"])
 def health() -> dict[str, str]:
     """Confirm that the API process is available."""
@@ -179,6 +192,22 @@ def read_alerts(
         "count": len(records),
         "items": records,
     }
+
+
+@app.get("/api/network/summary", tags=["dashboard"])
+def read_network_summary(
+    start: Annotated[str | None, Query(pattern=PERIOD_PATTERN)] = None,
+    end: Annotated[str | None, Query(pattern=PERIOD_PATTERN)] = None,
+    repository: ArtifactRepository = Depends(get_repository),
+) -> dict[str, Any]:
+    """Return cross-branch KPI comparisons, totals, and outliers."""
+    try:
+        kpi_records = repository.load_kpis(start=start, end=end)
+        alerts = repository.load_alerts(start=start, end=end)
+    except ArtifactRepositoryError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    return serialize_decimals(summarize_network(kpi_records, alerts))
 
 
 @app.get("/api/expenses", tags=["dashboard"])

@@ -2,6 +2,7 @@
 
 import httpx
 import pytest
+from flask import session
 
 from dashboard import app as dashboard_module
 from dashboard.app import app
@@ -14,10 +15,41 @@ def test_dashboard_shell_has_expected_identity():
 
 
 def test_dashboard_home_page_is_served():
-    response = app.server.test_client().get("/")
+    web_client = app.server.test_client()
+    web_client.post(
+        "/login",
+        data={"username": "director", "password": "medici-demo"},
+    )
+    response = web_client.get("/")
 
     assert response.status_code == 200
     assert b"Medici Bank Branch Operations" in response.data
+
+
+def test_dashboard_requires_login_and_enforces_branch_role():
+    web_client = app.server.test_client()
+
+    assert web_client.get("/").status_code == 302
+    login = web_client.post(
+        "/login",
+        data={"username": "rome.manager", "password": "medici-demo"},
+    )
+    assert login.headers["Location"].endswith("/branch/Rome")
+    assert web_client.get("/").headers["Location"].endswith("/branch/Rome")
+    assert web_client.get("/branch/Florence").headers["Location"].endswith(
+        "/branch/Rome"
+    )
+    assert web_client.get("/branch/Rome").status_code == 200
+
+
+def test_dashboard_rejects_invalid_login():
+    response = app.server.test_client().post(
+        "/login",
+        data={"username": "director", "password": "incorrect"},
+    )
+
+    assert response.status_code == 200
+    assert b"Invalid username or password" in response.data
 
 
 def test_dashboard_api_client_loads_branches():
@@ -71,6 +103,130 @@ def test_dashboard_api_client_loads_kpis():
     assert client.get_kpis("Florence") == [
         {"branch": "Florence", "period": "1420-01"}
     ]
+
+
+def test_dashboard_api_client_loads_network_summary():
+    expected = {
+        "branches": [{"branch": "Florence", "net_income": "20.00"}],
+        "totals": {"branch": "Network Total", "net_income": "20.00"},
+        "outliers": [],
+    }
+
+    def respond(request):
+        assert request.url.path == "/api/network/summary"
+        assert request.url.params["start"] == "1420-01"
+        assert request.url.params["end"] == "1420-12"
+        return httpx.Response(200, json=expected)
+
+    http_client = httpx.Client(transport=httpx.MockTransport(respond))
+    client = DashboardAPIClient("http://testserver", http_client=http_client)
+
+    assert client.get_network_summary(
+        start="1420-01", end="1420-12"
+    ) == expected
+
+
+def test_network_overview_renders_totals_and_outlier_highlight(monkeypatch):
+    class StubClient:
+        def get_network_summary(self, *, start=None, end=None):
+            assert (start, end) == ("1420-01", "1420-12")
+            branch = {
+                "branch": "Florence",
+                "modeled_cash_position": "100.00",
+                "net_income": "20.00",
+                "loan_portfolio_balance": "50.00",
+                "open_alerts": 2,
+                "expense_ratio": "10.00",
+                "loan_yield": "12.00",
+            }
+            totals = dict(branch, branch="Network Total")
+            return {
+                "branches": [branch],
+                "totals": totals,
+                "outliers": [
+                    {"branch": "Florence", "metric": "expense_ratio"}
+                ],
+            }
+
+    monkeypatch.setattr(dashboard_module, "api_client", StubClient())
+
+    wrapper, error = dashboard_module.load_network_overview(
+        "1420-01", "1420-12"
+    )
+    table = wrapper.children
+    body_rows = table.children[1].children
+
+    assert error == ""
+    branch_link = body_rows[0].children[0].children
+    assert branch_link.children == "Florence"
+    assert branch_link.href == "/branch/Florence"
+    assert body_rows[0].children[5].className == "network-outlier"
+    assert body_rows[1].className == "network-total-row"
+
+
+def test_branch_url_selects_requested_branch(monkeypatch):
+    class StubClient:
+        def get_branches(self):
+            return ["Florence", "Rome", "Venice"]
+
+    monkeypatch.setattr(dashboard_module, "api_client", StubClient())
+
+    _options, value, error = dashboard_module.load_branch_controls(
+        "/branch/Rome"
+    )
+
+    assert value == "Rome"
+    assert error == ""
+
+
+def test_branch_manager_dropdown_contains_only_assigned_branch(monkeypatch):
+    class StubClient:
+        def get_branches(self):
+            return ["Florence", "Rome", "Venice"]
+
+    monkeypatch.setattr(dashboard_module, "api_client", StubClient())
+    with app.server.test_request_context("/branch/Rome"):
+        session["username"] = "rome.manager"
+        options, value, error = dashboard_module.load_branch_controls(
+            "/branch/Rome"
+        )
+
+    assert options == [{"label": "Rome", "value": "Rome"}]
+    assert value == "Rome"
+    assert error == ""
+
+
+def test_branch_manager_navigation_names_assigned_branch():
+    with app.server.test_request_context("/branch/Rome"):
+        session["username"] = "rome.manager"
+        network_style, label, href = dashboard_module.load_role_navigation(
+            "/branch/Rome"
+        )
+
+    assert network_style == {"display": "none"}
+    assert label == "Rome Branch"
+    assert href == "/branch/Rome"
+
+
+def test_dashboard_client_blocks_branch_manager_crafted_requests():
+    client = DashboardAPIClient("http://testserver")
+    with app.server.test_request_context("/branch/Rome"):
+        session["username"] = "rome.manager"
+
+        with pytest.raises(DashboardAPIError, match="not authorized"):
+            client.get_kpis("Florence")
+        with pytest.raises(DashboardAPIError, match="not authorized"):
+            client.get_network_summary()
+
+
+def test_network_and_branch_views_are_separate():
+    network_styles = dashboard_module.select_dashboard_view("/")
+    branch_styles = dashboard_module.select_dashboard_view("/branch/Rome")
+
+    assert network_styles[0] == {}
+    assert all(style == {"display": "none"} for style in network_styles[1:])
+    assert branch_styles[0] == {"display": "none"}
+    assert all(style == {} for style in branch_styles[1:])
 
 
 def test_global_controls_use_api_branches_and_periods(monkeypatch):
