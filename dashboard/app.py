@@ -27,18 +27,42 @@ api_client = DashboardAPIClient.from_environment()
 app.layout = html.Div(
     id="dashboard-shell",
     children=[
+        dcc.Store(id="theme-preference", storage_type="local"),
+        html.Div(id="theme-sync", hidden=True),
         html.Header(
             className="top-bar",
             children=[
                 html.Div(
+                    className="brand-lockup",
                     children=[
-                        html.P("MEDICI BANK", className="eyebrow"),
-                        html.H1("Branch Operations Dashboard"),
+                        html.Img(
+                            src="/assets/medici-bank-seal.png",
+                            className="brand-seal",
+                            alt="Medici Bank seal",
+                        ),
+                        html.Div(
+                            children=[
+                                html.P("THE MEDICI SOVEREIGN LEDGER", className="eyebrow"),
+                                html.H1("Banking Intelligence"),
+                                html.P(
+                                    "Florence command network · Est. 1397",
+                                    className="brand-subtitle",
+                                ),
+                            ]
+                        ),
                     ]
                 ),
                 html.Div(
                     className="header-actions",
                     children=[
+                        html.Button(
+                            "Florentine Day",
+                            id="theme-toggle",
+                            className="theme-toggle",
+                            n_clicks=0,
+                            title="Switch color theme",
+                            **{"aria-label": "Switch to light mode"},
+                        ),
                         dcc.Link(
                             "Network Overview",
                             id="network-nav-link",
@@ -170,15 +194,20 @@ app.layout = html.Div(
                         html.Div(id="network-overview-table"),
                     ],
                 ),
-                html.Section(
+                html.Details(
                     id="dashboard-panels",
-                    className="panel",
+                    className="panel accordion-panel",
+                    open=True,
                     children=[
-                        html.Div(
-                            className="section-heading",
+                        html.Summary(
+                            className="section-heading accordion-summary",
                             children=[
-                                html.P("LIQUIDITY", className="eyebrow"),
-                                html.H2("Cash-flow trends"),
+                                html.Div(
+                                    children=[
+                                        html.P("LIQUIDITY", className="eyebrow"),
+                                        html.H2("Cash-flow trends"),
+                                    ]
+                                ),
                             ],
                         ),
                         html.Div(id="cashflow-error", className="error-message"),
@@ -205,15 +234,19 @@ app.layout = html.Div(
                         ),
                     ],
                 ),
-                html.Section(
+                html.Details(
                     id="expense-panel",
-                    className="panel",
+                    className="panel accordion-panel",
                     children=[
-                        html.Div(
-                            className="section-heading",
+                        html.Summary(
+                            className="section-heading accordion-summary",
                             children=[
-                                html.P("OPERATING COSTS", className="eyebrow"),
-                                html.H2("Expense breakdown"),
+                                html.Div(
+                                    children=[
+                                        html.P("OPERATING COSTS", className="eyebrow"),
+                                        html.H2("Expense breakdown"),
+                                    ]
+                                ),
                             ],
                         ),
                         html.Div(id="expense-error", className="error-message"),
@@ -235,15 +268,19 @@ app.layout = html.Div(
                         ),
                     ],
                 ),
-                html.Section(
+                html.Details(
                     id="loan-panel",
-                    className="panel",
+                    className="panel accordion-panel",
                     children=[
-                        html.Div(
-                            className="section-heading",
+                        html.Summary(
+                            className="section-heading accordion-summary",
                             children=[
-                                html.P("CREDIT ACTIVITY", className="eyebrow"),
-                                html.H2("Loan issuance and repayment"),
+                                html.Div(
+                                    children=[
+                                        html.P("CREDIT ACTIVITY", className="eyebrow"),
+                                        html.H2("Loan issuance and repayment"),
+                                    ]
+                                ),
                             ],
                         ),
                         html.P(
@@ -275,12 +312,12 @@ app.layout = html.Div(
                         ),
                     ],
                 ),
-                html.Section(
+                html.Details(
                     id="bill-panel",
-                    className="panel",
+                    className="panel accordion-panel",
                     children=[
-                        html.Div(
-                            className="section-heading bill-heading",
+                        html.Summary(
+                            className="section-heading accordion-summary",
                             children=[
                                 html.Div(
                                     children=[
@@ -288,6 +325,12 @@ app.layout = html.Div(
                                         html.H2("Bills of exchange activity"),
                                     ]
                                 ),
+                            ],
+                        ),
+                        html.Div(
+                            className="accordion-toolbar",
+                            children=[
+                                html.Label("Page", htmlFor="bill-page"),
                                 dcc.Input(
                                     id="bill-page",
                                     type="number",
@@ -309,12 +352,12 @@ app.layout = html.Div(
                         html.Div(id="bill-table"),
                     ],
                 ),
-                html.Section(
+                html.Details(
                     id="alert-panel",
-                    className="panel",
+                    className="panel accordion-panel",
                     children=[
-                        html.Div(
-                            className="section-heading alert-heading",
+                        html.Summary(
+                            className="section-heading accordion-summary",
                             children=[
                                 html.Div(
                                     children=[
@@ -322,6 +365,12 @@ app.layout = html.Div(
                                         html.H2("Anomaly alerts"),
                                     ]
                                 ),
+                            ],
+                        ),
+                        html.Div(
+                            className="accordion-toolbar alert-toolbar",
+                            children=[
+                                html.Label("Severity", htmlFor="alert-severity-selector"),
                                 dcc.Dropdown(
                                     id="alert-severity-selector",
                                     options=[
@@ -345,15 +394,19 @@ app.layout = html.Div(
                         html.Div(id="alert-table"),
                     ],
                 ),
-                html.Section(
+                html.Details(
                     id="transaction-panel",
-                    className="panel",
+                    className="panel accordion-panel",
                     children=[
-                        html.Div(
-                            className="section-heading",
+                        html.Summary(
+                            className="section-heading accordion-summary",
                             children=[
-                                html.P("VALIDATED LEDGER", className="eyebrow"),
-                                html.H2("Transaction review"),
+                                html.Div(
+                                    children=[
+                                        html.P("VALIDATED LEDGER", className="eyebrow"),
+                                        html.H2("Transaction review"),
+                                    ]
+                                ),
                             ],
                         ),
                         html.Div(
@@ -438,7 +491,104 @@ app.layout = html.Div(
                 ),
             ],
         ),
+        html.Footer(
+            className="bank-footer",
+            children=[
+                html.Div(
+                    className="footer-inner",
+                    children=[
+                        html.Div(
+                            className="footer-brand",
+                            children=[
+                                html.Img(
+                                    src="/assets/medici-bank-seal.png",
+                                    className="footer-seal",
+                                    alt="",
+                                ),
+                                html.Div(
+                                    children=[
+                                        html.P("MEDICI BANK", className="footer-name"),
+                                        html.P(
+                                            "Sovereign banking intelligence since 1397",
+                                            className="footer-tagline",
+                                        ),
+                                    ]
+                                ),
+                            ],
+                        ),
+                        html.Div(
+                            className="footer-links",
+                            children=[
+                                dcc.Link("Network", href="/", refresh=True),
+                                dcc.Link(
+                                    "Florence",
+                                    href="/branch/Florence",
+                                    refresh=True,
+                                ),
+                                html.A("API", href=f"{api_client.base_url}/docs"),
+                                html.A("Sign out", href="/logout"),
+                            ],
+                        ),
+                        html.Div(
+                            className="footer-mark",
+                            children=[
+                                html.Span(className="status-light"),
+                                html.Span("Private operations network"),
+                            ],
+                        ),
+                    ],
+                ),
+                html.Div(
+                    className="footer-legal",
+                    children=[
+                        html.Span("FORTUNA · FIDES · POTESTAS"),
+                        html.Span(
+                            "Modeled financial intelligence · Authorized access only"
+                        ),
+                    ],
+                ),
+            ],
+        ),
     ],
+)
+
+app.clientside_callback(
+    """
+    function(nClicks, currentTheme) {
+        currentTheme = currentTheme || window.localStorage.getItem("medicimess-theme") || "dark";
+        if (!nClicks) {
+            return currentTheme;
+        }
+        return currentTheme === "light" ? "dark" : "light";
+    }
+    """,
+    Output("theme-preference", "data"),
+    Input("theme-toggle", "n_clicks"),
+    State("theme-preference", "data"),
+    prevent_initial_call=True,
+)
+
+app.clientside_callback(
+    """
+    function(theme) {
+        const stored = window.localStorage.getItem("medicimess-theme");
+        const selected = (theme || stored) === "light" ? "light" : "dark";
+        window.localStorage.setItem("medicimess-theme", selected);
+        document.documentElement.dataset.theme = selected;
+        const label = selected === "dark" ? "Florentine Day" : "Sicilian Night";
+        const ariaLabel = selected === "dark"
+            ? "Switch to light mode"
+            : "Switch to dark mode";
+        window.requestAnimationFrame(function() {
+            const button = document.getElementById("theme-toggle");
+            if (button) button.setAttribute("aria-label", ariaLabel);
+        });
+        return [label, selected];
+    }
+    """,
+    Output("theme-toggle", "children"),
+    Output("theme-sync", "children"),
+    Input("theme-preference", "data"),
 )
 
 
@@ -791,8 +941,9 @@ def empty_chart(message: str) -> go.Figure:
         showarrow=False,
     )
     figure.update_layout(
-        paper_bgcolor="#fffdf8",
-        plot_bgcolor="#fffdf8",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#8f8b83"},
         xaxis={"visible": False},
         yaxis={"visible": False},
     )
@@ -866,15 +1017,16 @@ def load_cashflow_panel(branch, start, end):
             y=closing_balances,
             mode="lines+markers",
             name="Closing balance",
-            line={"color": "#8b1a1a", "width": 3},
-            marker={"color": "#b8860b", "size": 7},
+            line={"color": "#d9b15f", "width": 3},
+            marker={"color": "#f0d28d", "size": 7},
             hovertemplate="%{x}<br>%{y:,.2f} florins<extra></extra>",
         )
     )
     balance_figure.update_layout(
         title="Closing cash balance",
-        paper_bgcolor="#fffdf8",
-        plot_bgcolor="#fffdf8",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#8f8b83"},
         yaxis_title="Florins",
         margin={"l": 55, "r": 20, "t": 55, "b": 45},
     )
@@ -884,21 +1036,22 @@ def load_cashflow_panel(branch, start, end):
         x=periods,
         y=inflows,
         name="Inflows",
-        marker_color="#2e7d32",
+        marker_color="#50b894",
         hovertemplate="%{x}<br>%{y:,.2f} florins<extra>Inflows</extra>",
     )
     movement_figure.add_bar(
         x=periods,
         y=outflows,
         name="Outflows",
-        marker_color="#c62828",
+        marker_color="#a93643",
         hovertemplate="%{x}<br>%{y:,.2f} florins<extra>Outflows</extra>",
     )
     movement_figure.update_layout(
         title="Cash inflows and outflows",
         barmode="group",
-        paper_bgcolor="#fffdf8",
-        plot_bgcolor="#fffdf8",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#8f8b83"},
         yaxis_title="Florins",
         legend={"orientation": "h", "y": 0.98, "yanchor": "top"},
         margin={"l": 55, "r": 20, "t": 55, "b": 45},
@@ -975,7 +1128,7 @@ def load_expense_panel(branch, start, end):
         for category in categories
     }
 
-    colors = ["#8b1a1a", "#b8860b", "#2e7d32", "#f57c00", "#6d4c41", "#5d4037"]
+    colors = ["#d9b15f", "#7d2732", "#50b894", "#cf7c3f", "#8b7baa", "#7796b2"]
     figure = go.Figure()
     for index, category in enumerate(categories):
         figure.add_bar(
@@ -990,8 +1143,9 @@ def load_expense_panel(branch, start, end):
         )
     figure.update_layout(
         barmode="stack",
-        paper_bgcolor="#fffdf8",
-        plot_bgcolor="#fffdf8",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#8f8b83"},
         yaxis_title="Florins",
         legend={
             "orientation": "h",
@@ -1087,9 +1241,9 @@ def load_loan_panel(branch, start, end):
 
     figure = go.Figure()
     for field, label, color in (
-        ("loans_issued", "Loans issued", "#8b1a1a"),
-        ("loans_repaid", "Loans repaid", "#2e7d32"),
-        ("interest_earned", "Interest earned", "#b8860b"),
+        ("loans_issued", "Loans issued", "#a93643"),
+        ("loans_repaid", "Loans repaid", "#50b894"),
+        ("interest_earned", "Interest earned", "#d9b15f"),
     ):
         figure.add_bar(
             x=periods,
@@ -1101,8 +1255,9 @@ def load_loan_panel(branch, start, end):
     figure.update_layout(
         title="Monthly observable loan activity",
         barmode="group",
-        paper_bgcolor="#fffdf8",
-        plot_bgcolor="#fffdf8",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#8f8b83"},
         yaxis_title="Florins",
         legend={"orientation": "h", "y": 0.98, "yanchor": "top"},
         margin={"l": 55, "r": 20, "t": 60, "b": 45},
@@ -1136,8 +1291,9 @@ def load_loan_panel(branch, start, end):
         )
         donut.update_layout(
             title="Share of observed issuance by counterparty",
-            paper_bgcolor="#fffdf8",
-            plot_bgcolor="#fffdf8",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font={"color": "#8f8b83"},
             margin={"l": 20, "r": 20, "t": 60, "b": 20},
         )
     else:
