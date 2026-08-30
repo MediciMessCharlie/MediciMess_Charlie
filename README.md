@@ -10,6 +10,13 @@ This project showcases how double-entry accounting works — a system where ever
 
 The project has also been extended with a data engineering pipeline that ingests and validates historical transaction data, calculates branch-level banking KPIs, and detects potentially anomalous financial activity.
 
+Project documentation:
+
+- [Pipeline documentation](docs/PIPELINE_DOCUMENTATION.md)
+- [User guide](docs/USER_GUIDE.md)
+- [Deployment/runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [KPI and anomaly example notebook](notebooks/kpi_anomaly_rules_demo.ipynb)
+
 ---
 
 ## What is Double-Entry Accounting?
