@@ -1,0 +1,31 @@
+[
+  {
+    "avg_deposit_size": "0",
+    "avg_withdrawal_size": "0",
+    "branch": "Florence",
+    "closing_cash_balance": "-82833.66",
+    "deposit_count": 0,
+    "exchange_fee_revenue": "0",
+    "expense_per_transaction": "0",
+    "expenses_by_category": {},
+    "interest_earned": "0",
+    "interest_income": "0",
+    "interest_yield": "0.00",
+    "loan_portfolio_balance": "0",
+    "loans_issued": "0",
+    "loans_repaid": "0",
+    "net_cash_movement": "-82833.66",
+    "net_income": "0",
+    "net_income_margin": "0.00",
+    "period": "1390-01",
+    "top_payees_by_expense": [],
+    "total_cash_inflows": "0",
+    "total_cash_outflows": "82833.66",
+    "total_deposits": "0",
+    "total_operating_expenses": "0",
+    "total_revenue": "0",
+    "total_withdrawals": "0",
+    "trading_revenue": "0",
+    "withdrawal_count": 0
+  }
+]
