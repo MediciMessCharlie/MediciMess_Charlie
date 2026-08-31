@@ -15,6 +15,7 @@ Project documentation:
 - [Pipeline documentation](docs/PIPELINE_DOCUMENTATION.md)
 - [User guide](docs/USER_GUIDE.md)
 - [Deployment/runbook](docs/DEPLOYMENT_RUNBOOK.md)
+- [REST API reference](docs/API_REFERENCE.md)
 - [KPI and anomaly example notebook](notebooks/kpi_anomaly_rules_demo.ipynb)
 
 ---

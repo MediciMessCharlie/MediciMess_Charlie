@@ -14,6 +14,10 @@ from .auth import configure_auth, current_user
 
 
 ASSETS_DIRECTORY = Path(__file__).with_name("assets")
+API_REFERENCE_URL = (
+    "https://github.com/MediciMessCharlie/MediciMess_Charlie/"
+    "blob/main/docs/API_REFERENCE.md"
+)
 
 app = Dash(
     __name__,
@@ -525,7 +529,12 @@ app.layout = html.Div(
                                     href="/branch/Florence",
                                     refresh=True,
                                 ),
-                                html.A("API", href=f"{api_client.base_url}/docs"),
+                                html.A(
+                                    "API Reference",
+                                    href=API_REFERENCE_URL,
+                                    target="_blank",
+                                    rel="noopener noreferrer",
+                                ),
                                 html.A("Sign out", href="/logout"),
                             ],
                         ),
