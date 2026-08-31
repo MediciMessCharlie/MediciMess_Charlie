@@ -4,3 +4,6 @@ httpx>=0.28,<1
 pytest>=9,<10
 dash>=3,<5
 plotly>=6,<7
+Pillow>=12,<13
+websocket-client>=1.9,<2
+imageio-ffmpeg>=0.6,<1
