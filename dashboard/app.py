@@ -1062,12 +1062,17 @@ def load_cashflow_panel(branch, start, end):
         plot_bgcolor="rgba(0,0,0,0)",
         font={"color": "#8f8b83"},
         yaxis_title="Florins",
-        legend={"orientation": "h", "y": 0.98, "yanchor": "top"},
+        legend={
+            "orientation": "h",
+            "x": 0.92,
+            "xanchor": "right",
+            "y": 1,
+            "yanchor": "top",
+        },
         margin={"l": 55, "r": 20, "t": 55, "b": 45},
     )
 
     return balance_figure, movement_figure, create_cashflow_table(records), ""
-
 
 def create_expense_table(records):
     """Create the ranked expense counterparty table."""
