@@ -1,3 +1,6 @@
+<p align="center">
+    <img src="docs/images/medicimess_login.png" alt="MediMess Login page" width="100%">
+</p>
 # MediciMess
 
 A Python implementation of double-entry bookkeeping inspired by the Medici banking dynasty of Renaissance Florence.
