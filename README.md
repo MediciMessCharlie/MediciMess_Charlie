@@ -1,17 +1,12 @@
 <p align="center">
-    <img src="docs/images/medicimess_login.png" alt="MediMess Login page" width="100%">
+  <img src="docs/images/medicimess-network-overview.png" alt="MediciMess Network Overview" width="100%">
 </p>
+
 # MediciMess
 
-A Python implementation of double-entry bookkeeping inspired by the Medici banking dynasty of Renaissance Florence.
+MediciMess is an end-to-end financial data engineering and analytics application built around historical Medici banking transactions. The system ingests and validates transaction data, transforms it into financial KPIs, detects anomalous transaction patterns, and serves the processed data through a FastAPI REST API to interactive Dash dashboards.
 
-## Overview
-
-MediciMess is an educational project that demonstrates the fundamental principles of double-entry accounting through a simulation of the Medici Bank's operations. The implementation uses florins as the currency in honor of the historical Medici banking dynasty.
-
-This project showcases how double-entry accounting works — a system where every financial transaction affects at least two accounts, and the sum of debits must always equal the sum of credits.
-
-The project has also been extended with a data engineering pipeline that ingests and validates historical transaction data, calculates branch-level banking KPIs, and detects potentially anomalous financial activity.
+The application provides branch-level financial insights for branch managers and a network-wide view for managing directors, including KPI monitoring, cash-flow analysis, loan and expense analysis, transaction exploration, anomaly alerts, cross-branch comparisons, and role-based access control.
 
 Project documentation:
 
@@ -20,6 +15,26 @@ Project documentation:
 - [Deployment/runbook](docs/DEPLOYMENT_RUNBOOK.md)
 - [REST API reference](docs/API_REFERENCE.md)
 - [KPI and anomaly example notebook](notebooks/kpi_anomaly_rules_demo.ipynb)
+
+---
+
+## Application Views
+
+### Secure Login
+
+Role-based authentication controls access to branch-level and network-wide financial intelligence.
+
+<p align="center">
+  <img src="docs/images/medicimess-login.png" alt="MediciMess Login" width="55%">
+</p>
+
+### Branch Banking Intelligence
+
+Branch managers can explore key performance indicators, cash-flow trends, expenses, loan activity, anomaly alerts, and individual transactions for a selected reporting period.
+
+<p align="center">
+  <img src="docs/images/medicimess-branch-dashboard.png" alt="MediciMess Branch Dashboard" width="100%">
+</p>
 
 ---
 
